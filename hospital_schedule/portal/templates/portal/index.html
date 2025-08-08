@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PTO Request</title>
+</head>
+<body>
+    <h1>Request Paid Time Off</h1>
+    <form method="post">
+        {% csrf_token %}
+        <label for="employee_id">Employee ID:</label><br>
+        <input type="text" id="employee_id" name="employee_id"><br>
+        <label for="start_date">Start Date:</label><br>
+        <input type="date" id="start_date" name="start_date"><br>
+        <label for="end_date">End Date:</label><br>
+        <input type="date" id="end_date" name="end_date"><br>
+        <label for="reason">Reason:</label><br>
+        <textarea id="reason" name="reason"></textarea><br><br>
+        <input type="submit" value="Submit">
+    </form>
+</body>
+</html>
