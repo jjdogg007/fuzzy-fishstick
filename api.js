@@ -17,3 +17,66 @@ export async function getEmployees() {
 
     return data;
 }
+
+export async function updateShift(shiftId, shiftData) {
+    console.log(`Updating shift ${shiftId} in Supabase:`, shiftData);
+    const { data, error } = await supabaseClient
+        .from('shifts')
+        .update(shiftData)
+        .eq('id', shiftId);
+
+    if (error) {
+        console.error('Error updating shift:', error);
+        return null;
+    }
+
+    return data;
+}
+
+export async function deleteShift(shiftId) {
+    console.log(`Deleting shift ${shiftId} from Supabase`);
+    const { data, error } = await supabaseClient
+        .from('shifts')
+        .delete()
+        .eq('id', shiftId);
+
+    if (error) {
+        console.error('Error deleting shift:', error);
+        return null;
+    }
+
+    return data;
+}
+
+export async function addShift(shiftData) {
+    console.log('Adding shift to Supabase:', shiftData);
+    const { data, error } = await supabaseClient
+        .from('shifts')
+        .insert([shiftData]);
+
+    if (error) {
+        console.error('Error adding shift:', error);
+        return null;
+    }
+
+    return data;
+}
+
+export async function getShifts() {
+    console.log('Fetching shifts...');
+    const { data, error } = await supabaseClient
+        .from('shifts')
+        .select(`
+            *,
+            employees (
+                name
+            )
+        `);
+
+    if (error) {
+        console.error('Error fetching shifts:', error);
+        return [];
+    }
+
+    return data;
+}
