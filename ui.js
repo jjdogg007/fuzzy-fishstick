@@ -1,6 +1,7 @@
 import {
     getEmployees, getShifts, addShift, updateShift, deleteShift, getShift,
-    addEmployee, updateEmployee, deleteEmployee, getEmployee
+    addEmployee, updateEmployee, deleteEmployee, getEmployee, getPtoRequests,
+    updatePtoRequestStatus, addPtoRequest, getPtoRequestById
 } from './api.js';
 
 const app = document.getElementById('app');
@@ -24,12 +25,18 @@ export function initUI() {
         <h2>Shifts</h2>
         <div id="add-shift-form-container"></div>
         <div id="shift-list-container"></div>
+        <hr>
+        <h2>PTO Requests</h2>
+        <div id="add-pto-request-form-container"></div>
+        <div id="pto-dashboard-container"></div>
     `;
 
     renderAddEmployeeForm();
     renderEmployeeList();
     renderAddShiftForm();
     renderShiftList();
+    renderPtoDashboard();
+    renderPtoRequestForm();
 
     // --- Online/Offline Status ---
     const statusIndicator = document.getElementById('status-indicator');
@@ -154,6 +161,39 @@ export function initUI() {
         renderEmployeeList();
     });
 
+    const ptoDashboardContainer = document.getElementById('pto-dashboard-container');
+    ptoDashboardContainer.addEventListener('click', async (e) => {
+        const target = e.target;
+        const requestId = target.dataset.id;
+
+        if (target.classList.contains('approve-pto-btn')) {
+            const { error } = await updatePtoRequestStatus(requestId, 'approved');
+            if (error) return showToast(error.message, true);
+            renderPtoDashboard();
+        }
+
+        if (target.classList.contains('deny-pto-btn')) {
+            const { error } = await updatePtoRequestStatus(requestId, 'denied');
+            if (error) return showToast(error.message, true);
+            renderPtoDashboard();
+        }
+
+        if (target.classList.contains('generate-attachment-btn')) {
+            const { data: request, error } = await getPtoRequestById(requestId); // This function needs to be created
+            if (error) return showToast(error.message, true);
+
+            const params = new URLSearchParams({
+                employeeName: request.employees.name,
+                startDate: request.start_date,
+                endDate: request.end_date,
+                reason: request.reason,
+                status: request.status,
+                requestDate: new Date(request.created_at).toLocaleDateString()
+            });
+            window.open(`pto_attachment.html?${params.toString()}`, '_blank');
+        }
+    });
+
     window.addEventListener('click', (event) => {
         if (event.target == shiftModal) shiftModal.style.display = 'none';
         if (event.target == employeeModal) employeeModal.style.display = 'none';
@@ -214,6 +254,87 @@ async function renderEmployeeList() {
                     <td>
                         <button class="edit-employee-btn" data-id="${employee.id}">Edit</button>
                         <button class="delete-employee-btn" data-id="${employee.id}">Delete</button>
+                    </td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    container.innerHTML = '';
+    container.appendChild(table);
+}
+
+async function renderPtoRequestForm() {
+    const container = document.getElementById('add-pto-request-form-container');
+    const { data: employees, error } = await getEmployees();
+    if (error) return showToast(error.message, true);
+
+    const form = document.createElement('form');
+    form.id = 'add-pto-request-form';
+    form.innerHTML = `
+        <h3>Submit PTO Request</h3>
+        <label for="pto-employee-select">Employee:</label>
+        <select id="pto-employee-select" name="employee_id" required>
+            ${employees.map(emp => `<option value="${emp.id}">${emp.name}</option>`).join('')}
+        </select>
+        <label for="pto-start-date">Start Date:</label>
+        <input type="date" id="pto-start-date" name="start_date" required>
+        <label for="pto-end-date">End Date:</label>
+        <input type="date" id="pto-end-date" name="end_date" required>
+        <label for="pto-reason">Reason:</label>
+        <textarea id="pto-reason" name="reason"></textarea>
+        <button type="submit">Submit Request</button>
+    `;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const requestData = Object.fromEntries(formData.entries());
+        const { error } = await addPtoRequest(requestData);
+        if (error) return showToast(error.message, true);
+        form.reset();
+        renderPtoDashboard();
+    });
+
+    container.innerHTML = '';
+    container.appendChild(form);
+}
+
+async function renderPtoDashboard() {
+    const container = document.getElementById('pto-dashboard-container');
+    const { data: ptoRequests, error } = await getPtoRequests();
+    if (error) return showToast(error.message, true);
+
+    if (!ptoRequests || ptoRequests.length === 0) {
+        container.innerHTML = '<p>No PTO requests found.</p>';
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${ptoRequests.map(request => `
+                <tr>
+                    <td>${request.employees.name || 'N/A'}</td>
+                    <td>${request.start_date}</td>
+                    <td>${request.end_date}</td>
+                    <td>${request.reason || 'N/A'}</td>
+                    <td>${request.status}</td>
+                    <td>
+                        ${request.status === 'pending' ? `
+                            <button class="approve-pto-btn" data-id="${request.id}">Approve</button>
+                            <button class="deny-pto-btn" data-id="${request.id}">Deny</button>
+                        ` : ''}
+                        <button class="generate-attachment-btn" data-id="${request.id}">Generate Attachment</button>
                     </td>
                 </tr>
             `).join('')}

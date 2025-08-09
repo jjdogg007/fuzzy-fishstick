@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PTO Request Details</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .container { border: 1px solid #ccc; padding: 20px; max-width: 800px; margin: auto; }
+        h1 { text-align: center; }
+        .details-grid { display: grid; grid-template-columns: 150px 1fr; gap: 10px; }
+        .details-grid > div { padding: 5px; }
+        .label { font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Paid Time Off Request</h1>
+        <hr>
+        <div class="details-grid">
+            <div class="label">Employee Name:</div><div id="employee-name"></div>
+            <div class="label">Start Date:</div><div id="start-date"></div>
+            <div class="label">End Date:</div><div id="end-date"></div>
+            <div class="label">Reason:</div><div id="reason"></div>
+            <div class="label">Status:</div><div id="status"></div>
+            <div class="label">Request Date:</div><div id="request-date"></div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            document.getElementById('employee-name').textContent = params.get('employeeName') || 'N/A';
+            document.getElementById('start-date').textContent = params.get('startDate') || 'N/A';
+            document.getElementById('end-date').textContent = params.get('endDate') || 'N/A';
+            document.getElementById('reason').textContent = params.get('reason') || 'N/A';
+            document.getElementById('status').textContent = params.get('status') || 'N/A';
+            document.getElementById('request-date').textContent = params.get('requestDate') || 'N/A';
+        });
+    </script>
+</body>
+</html>

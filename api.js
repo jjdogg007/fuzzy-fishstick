@@ -63,6 +63,19 @@ export async function getEmployees() {
     return { data, error };
 }
 
+export async function addPtoRequest(requestData) {
+    const { data, error } = await supabaseClient.from('pto_requests').insert([requestData]).select().single();
+    if (error) {
+        console.error('Error adding PTO request:', error);
+    } else if (data) {
+        addAuditLog('PTO Request Added', {
+            employee_id: data.employee_id,
+            details: { pto_request_id: data.id, ...requestData }
+        });
+    }
+    return { data, error };
+}
+
 export async function getEmployee(employeeId) {
     const { data, error } = await supabaseClient.from('employees').select('*').eq('id', employeeId).single();
     if (error) console.error('Error fetching employee:', error);
@@ -166,6 +179,37 @@ export async function deleteShift(shiftId, isSyncing = false) {
     return { data, error };
 }
 
+export async function getPtoRequests() {
+    const { data, error } = await supabaseClient.from('pto_requests').select('*, employees(name)');
+    if (error) console.error('Error fetching PTO requests:', error);
+    return { data, error };
+}
+
+export async function updatePtoRequestStatus(requestId, status) {
+    const { data, error } = await supabaseClient
+        .from('pto_requests')
+        .update({ status: status })
+        .eq('id', requestId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error updating PTO request status:', error);
+    } else if (data) {
+        addAuditLog('PTO Request Updated', {
+            employee_id: data.employee_id,
+            details: { pto_request_id: data.id, status: status }
+        });
+    }
+
+    return { data, error };
+}
+
+export async function getPtoRequestById(requestId) {
+    const { data, error } = await supabaseClient.from('pto_requests').select('*, employees(name)').eq('id', requestId).single();
+    if (error) console.error('Error fetching PTO request:', error);
+    return { data, error };
+}
 
 export async function addAuditLog(action, payload) {
     const logEntry = {
