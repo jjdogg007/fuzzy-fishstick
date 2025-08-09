@@ -31,5 +31,21 @@
             </form>
         </div>
     </div>
+
+    <!-- Edit Employee Modal -->
+    <div id="edit-employee-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn-employee">&times;</span>
+            <h2>Edit Employee</h2>
+            <form id="edit-employee-form">
+                <input type="hidden" id="edit-employee-id" name="id">
+                <label for="edit-employee-name">Name:</label>
+                <input type="text" id="edit-employee-name" name="name" required>
+                <label for="edit-employee-email">Email:</label>
+                <input type="email" id="edit-employee-email" name="email">
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>

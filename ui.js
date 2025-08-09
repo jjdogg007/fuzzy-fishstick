@@ -1,10 +1,24 @@
-import { getEmployees, getShifts, addShift, updateShift, deleteShift, getShift } from './api.js';
+import {
+    getEmployees, getShifts, addShift, updateShift, deleteShift, getShift,
+    addEmployee, updateEmployee, deleteEmployee, getEmployee
+} from './api.js';
 
 const app = document.getElementById('app');
+let toastTimer;
+
+function showToast(message, isError = false) {
+    const toastContainer = document.getElementById('toast-container');
+    toastContainer.textContent = message;
+    toastContainer.style.backgroundColor = isError ? '#f44336' : '#333';
+    toastContainer.className = 'show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastContainer.className = toastContainer.className.replace('show', ''); }, 3000);
+}
 
 export function initUI() {
     app.innerHTML = `
         <h2>Employees</h2>
+        <div id="add-employee-form-container"></div>
         <div id="employee-list-container"></div>
         <hr>
         <h2>Shifts</h2>
@@ -12,19 +26,13 @@ export function initUI() {
         <div id="shift-list-container"></div>
     `;
 
+    renderAddEmployeeForm();
     renderEmployeeList();
     renderAddShiftForm();
     renderShiftList();
 
     // --- Online/Offline Status ---
     const statusIndicator = document.getElementById('status-indicator');
-    const toastContainer = document.getElementById('toast-container');
-
-    function showToast(message) {
-        toastContainer.textContent = message;
-        toastContainer.className = 'show';
-        setTimeout(function(){ toastContainer.className = toastContainer.className.replace('show', ''); }, 3000);
-    }
 
     function updateStatus() {
         if (navigator.onLine) {
@@ -41,11 +49,11 @@ export function initUI() {
     window.addEventListener('online', updateStatus);
     window.addEventListener('offline', updateStatus);
     window.addEventListener('syncComplete', () => {
-        console.log('Sync complete, re-rendering shift list.');
+        showToast('Offline changes have been synced.');
         renderShiftList();
+        renderEmployeeList();
     });
-    // We need to call it once to set the initial status, but we don't want to show a toast on page load.
-    // So, we'll just set the status bar.
+
     if (navigator.onLine) {
         statusIndicator.textContent = '🟢 Connected';
         statusIndicator.style.backgroundColor = '#4CAF50';
@@ -55,43 +63,40 @@ export function initUI() {
     }
 
 
+    // --- Event Listeners ---
     const shiftListContainer = document.getElementById('shift-list-container');
-    const modal = document.getElementById('edit-shift-modal');
-    const modalForm = document.getElementById('edit-shift-form');
-    const closeModalBtn = document.querySelector('.close-btn');
+    const shiftModal = document.getElementById('edit-shift-modal');
+    const shiftModalForm = document.getElementById('edit-shift-form');
+    const closeShiftModalBtn = document.querySelector('.close-btn');
 
-    closeModalBtn.onclick = () => modal.style.display = 'none';
-    window.onclick = (event) => {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    };
+    closeShiftModalBtn.onclick = () => shiftModal.style.display = 'none';
 
     shiftListContainer.addEventListener('click', async (e) => {
         const target = e.target;
         if (target.classList.contains('delete-shift-btn')) {
             const shiftId = target.dataset.id;
-            const confirmed = confirm('Are you sure you want to delete this shift?');
-            if (confirmed) {
-                await deleteShift(shiftId);
+            if (confirm('Are you sure you want to delete this shift?')) {
+                const { error } = await deleteShift(shiftId);
+                if (error) return showToast(error.message, true);
                 renderShiftList();
             }
         }
 
         if (target.classList.contains('edit-shift-btn')) {
             const shiftId = target.dataset.id;
-            const shift = await getShift(shiftId);
+            const { data: shift, error } = await getShift(shiftId);
+            if (error) return showToast(error.message, true);
             if (shift) {
                 document.getElementById('edit-shift-id').value = shift.id;
                 document.getElementById('edit-shift-date').value = shift.shift_date;
                 document.getElementById('edit-start-time').value = shift.start_time;
                 document.getElementById('edit-end-time').value = shift.end_time;
-                modal.style.display = 'block';
+                shiftModal.style.display = 'block';
             }
         }
     });
 
-    modalForm.addEventListener('submit', async (e) => {
+    shiftModalForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const shiftId = document.getElementById('edit-shift-id').value;
         const shiftData = {
@@ -99,17 +104,91 @@ export function initUI() {
             start_time: document.getElementById('edit-start-time').value,
             end_time: document.getElementById('edit-end-time').value,
         };
-        await updateShift(shiftId, shiftData);
-        modal.style.display = 'none';
+        const { error } = await updateShift(shiftId, shiftData);
+        if (error) return showToast(error.message, true);
+        shiftModal.style.display = 'none';
         renderShiftList();
+    });
+
+    const employeeListContainer = document.getElementById('employee-list-container');
+    const employeeModal = document.getElementById('edit-employee-modal');
+    const employeeModalForm = document.getElementById('edit-employee-form');
+    const closeEmployeeModalBtn = document.querySelector('.close-btn-employee');
+
+    closeEmployeeModalBtn.onclick = () => employeeModal.style.display = 'none';
+
+    employeeListContainer.addEventListener('click', async (e) => {
+        const target = e.target;
+        if (target.classList.contains('delete-employee-btn')) {
+            const employeeId = target.dataset.id;
+            if (confirm('Are you sure you want to delete this employee?')) {
+                const { error } = await deleteEmployee(employeeId);
+                if (error) return showToast(error.message, true);
+                renderEmployeeList();
+            }
+        }
+
+        if (target.classList.contains('edit-employee-btn')) {
+            const employeeId = target.dataset.id;
+            const { data: employee, error } = await getEmployee(employeeId);
+            if (error) return showToast(error.message, true);
+            if (employee) {
+                document.getElementById('edit-employee-id').value = employee.id;
+                document.getElementById('edit-employee-name').value = employee.name;
+                document.getElementById('edit-employee-email').value = employee.email;
+                employeeModal.style.display = 'block';
+            }
+        }
+    });
+
+    employeeModalForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const employeeId = document.getElementById('edit-employee-id').value;
+        const employeeData = {
+            name: document.getElementById('edit-employee-name').value,
+            email: document.getElementById('edit-employee-email').value,
+        };
+        const { error } = await updateEmployee(employeeId, employeeData);
+        if (error) return showToast(error.message, true);
+        employeeModal.style.display = 'none';
+        renderEmployeeList();
+    });
+
+    window.addEventListener('click', (event) => {
+        if (event.target == shiftModal) shiftModal.style.display = 'none';
+        if (event.target == employeeModal) employeeModal.style.display = 'none';
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+            event.preventDefault();
+            document.getElementById('employee-name').focus();
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+            event.preventDefault();
+            if (employeeModal.style.display === 'block') {
+                employeeModalForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            } else if (shiftModal.style.display === 'block') {
+                shiftModalForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            } else {
+                // Determine which add form is more relevant to submit
+                // For now, let's default to employee form if it exists
+                const addEmployeeForm = document.getElementById('add-employee-form');
+                if (addEmployeeForm) {
+                    addEmployeeForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                }
+            }
+        }
     });
 }
 
 async function renderEmployeeList() {
     const container = document.getElementById('employee-list-container');
-    const employees = await getEmployees();
+    const { data: employees, error } = await getEmployees();
+    if (error) return showToast(error.message, true);
 
-    if (employees.length === 0) {
+    if (!employees || employees.length === 0) {
         container.innerHTML = '<p>No employees found.</p>';
         return;
     }
@@ -122,6 +201,7 @@ async function renderEmployeeList() {
                 <th>Email</th>
                 <th>Type</th>
                 <th>Hire Date</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -131,6 +211,10 @@ async function renderEmployeeList() {
                     <td>${employee.email || 'N/A'}</td>
                     <td>${employee.type || 'N/A'}</td>
                     <td>${employee.hire_date || 'N/A'}</td>
+                    <td>
+                        <button class="edit-employee-btn" data-id="${employee.id}">Edit</button>
+                        <button class="delete-employee-btn" data-id="${employee.id}">Delete</button>
+                    </td>
                 </tr>
             `).join('')}
         </tbody>
@@ -139,9 +223,37 @@ async function renderEmployeeList() {
     container.appendChild(table);
 }
 
+async function renderAddEmployeeForm() {
+    const container = document.getElementById('add-employee-form-container');
+    const form = document.createElement('form');
+    form.id = 'add-employee-form';
+    form.innerHTML = `
+        <h3>Add New Employee</h3>
+        <label for="employee-name">Name:</label>
+        <input type="text" id="employee-name" name="name" required>
+        <label for="employee-email">Email:</label>
+        <input type="email" id="employee-email" name="email">
+        <button type="submit">Add Employee</button>
+    `;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const employeeData = Object.fromEntries(formData.entries());
+        const { error } = await addEmployee(employeeData);
+        if (error) return showToast(error.message, true);
+        form.reset();
+        renderEmployeeList();
+    });
+
+    container.innerHTML = '';
+    container.appendChild(form);
+}
+
 async function renderAddShiftForm() {
     const container = document.getElementById('add-shift-form-container');
-    const employees = await getEmployees();
+    const { data: employees, error } = await getEmployees();
+    if (error) return showToast(error.message, true);
 
     const form = document.createElement('form');
     form.id = 'add-shift-form';
@@ -164,9 +276,8 @@ async function renderAddShiftForm() {
         e.preventDefault();
         const formData = new FormData(form);
         const shiftData = Object.fromEntries(formData.entries());
-
-        await addShift(shiftData);
-
+        const { error } = await addShift(shiftData);
+        if (error) return showToast(error.message, true);
         form.reset();
         renderShiftList();
     });
@@ -177,9 +288,10 @@ async function renderAddShiftForm() {
 
 async function renderShiftList() {
     const container = document.getElementById('shift-list-container');
-    const shifts = await getShifts();
+    const { data: shifts, error } = await getShifts();
+    if (error) return showToast(error.message, true);
 
-    if (shifts.length === 0) {
+    if (!shifts || shifts.length === 0) {
         container.innerHTML = '<p>No shifts found.</p>';
         return;
     }
