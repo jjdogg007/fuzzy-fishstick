@@ -1,7 +1,8 @@
 import {
     getEmployees, getShifts, addShift, updateShift, deleteShift, getShift,
     addEmployee, updateEmployee, deleteEmployee, getEmployee, getPtoRequests,
-    updatePtoRequestStatus, addPtoRequest, getPtoRequestById
+    updatePtoRequestStatus, addPtoRequest, getPtoRequestById, addShiftBid,
+    getShiftBids, updateShiftBidStatus, assignShiftToEmployee
 } from './api.js';
 
 const app = document.getElementById('app');
@@ -29,6 +30,9 @@ export function initUI() {
         <h2>PTO Requests</h2>
         <div id="add-pto-request-form-container"></div>
         <div id="pto-dashboard-container"></div>
+        <hr>
+        <h2>Shift Bids</h2>
+        <div id="shift-bids-container"></div>
     `;
 
     renderAddEmployeeForm();
@@ -37,6 +41,8 @@ export function initUI() {
     renderShiftList();
     renderPtoDashboard();
     renderPtoRequestForm();
+    renderCalendar();
+    renderShiftBidsDashboard();
 
     // --- Online/Offline Status ---
     const statusIndicator = document.getElementById('status-indicator');
@@ -263,6 +269,119 @@ async function renderEmployeeList() {
     container.appendChild(table);
 }
 
+async function renderShiftBidsDashboard() {
+    const container = document.getElementById('shift-bids-container');
+    const { data: bids, error } = await getShiftBids();
+    if (error) return showToast(error.message, true);
+
+    if (!bids || bids.length === 0) {
+        container.innerHTML = '<p>No pending shift bids.</p>';
+        return;
+    }
+
+    const table = document.createElement('table');
+    table.innerHTML = `
+        <thead>
+            <tr>
+                <th>Shift Date</th>
+                <th>Shift Time</th>
+                <th>Employee Bidding</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${bids.map(bid => `
+                <tr>
+                    <td>${bid.shifts.shift_date}</td>
+                    <td>${bid.shifts.start_time} - ${bid.shifts.end_time}</td>
+                    <td>${bid.employees.name}</td>
+                    <td>
+                        <button class="approve-bid-btn" data-bid-id="${bid.id}" data-shift-id="${bid.shift_id}" data-employee-id="${bid.employee_id}">Approve</button>
+                        <button class="deny-bid-btn" data-bid-id="${bid.id}">Deny</button>
+                    </td>
+                </tr>
+            `).join('')}
+        </tbody>
+    `;
+    container.innerHTML = '';
+    container.appendChild(table);
+
+    container.addEventListener('click', async (e) => {
+        const target = e.target;
+        const bidId = target.dataset.bidId;
+
+        if (target.classList.contains('approve-bid-btn')) {
+            const shiftId = target.dataset.shiftId;
+            const employeeId = target.dataset.employeeId;
+
+            await assignShiftToEmployee(shiftId, employeeId);
+            await updateShiftBidStatus(bidId, 'approved');
+
+            // This is a simplification. A real app would also deny other bids for the same shift.
+            showToast('Shift bid approved!');
+            renderShiftBidsDashboard();
+            renderCalendar(); // Re-render calendar to show the assigned shift
+        }
+
+        if (target.classList.contains('deny-bid-btn')) {
+            await updateShiftBidStatus(bidId, 'denied');
+            showToast('Shift bid denied.');
+            renderShiftBidsDashboard();
+        }
+    });
+}
+
+async function renderCalendar() {
+    const calendarEl = document.getElementById('calendar');
+    const { data: shifts, error } = await getShifts();
+    if (error) return showToast(error.message, true);
+
+    const events = shifts.map(shift => {
+        const isAssigned = shift.employees && shift.employees.name;
+        return {
+            title: isAssigned ? shift.employees.name : 'Open Shift',
+            start: `${shift.shift_date}T${shift.start_time}`,
+            end: `${shift.shift_date}T${shift.end_time}`,
+            id: shift.id,
+            allDay: false,
+            backgroundColor: isAssigned ? '#3498db' : '#95a5a6',
+            borderColor: isAssigned ? '#2980b9' : '#7f8c8d',
+            extendedProps: {
+                isAssigned: isAssigned
+            }
+        };
+    });
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: events,
+        eventClick: async function(info) {
+            if (!info.event.extendedProps.isAssigned) {
+                const employeeId = prompt('Enter your employee ID to bid on this shift:');
+                if (employeeId) {
+                    const bidData = {
+                        shift_id: info.event.id,
+                        employee_id: employeeId
+                    };
+                    const { error } = await addShiftBid(bidData);
+                    if (error) {
+                        showToast(error.message, true);
+                    } else {
+                        showToast('Bid submitted successfully!');
+                    }
+                }
+            }
+        }
+    });
+
+    calendar.render();
+}
+
 async function renderPtoRequestForm() {
     const container = document.getElementById('add-pto-request-form-container');
     const { data: employees, error } = await getEmployees();
@@ -380,8 +499,9 @@ async function renderAddShiftForm() {
     form.id = 'add-shift-form';
     form.innerHTML = `
         <h3>Add New Shift</h3>
-        <label for="employee-select">Employee:</label>
-        <select id="employee-select" name="employee_id" required>
+        <label for="employee-select">Employee (optional):</label>
+        <select id="employee-select" name="employee_id">
+            <option value="">-- Open Shift --</option>
             ${employees.map(emp => `<option value="${emp.id}">${emp.name}</option>`).join('')}
         </select>
         <label for="shift-date">Date:</label>
