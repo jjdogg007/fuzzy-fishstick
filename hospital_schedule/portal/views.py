@@ -39,14 +39,27 @@ def employee_management(request):
                 'employees': Employee.objects.all()
             })
 
-        # Create a new user
+        # Check for duplicates
         username = email if email else name.replace(' ', '').lower()
+        if User.objects.filter(username=username).exists():
+            return render(request, 'portal/employee_management.html', {
+                'error': f'An employee with username "{username}" already exists.',
+                'employees': Employee.objects.all()
+            })
+        if email and User.objects.filter(email=email).exists():
+            return render(request, 'portal/employee_management.html', {
+                'error': f'An employee with email "{email}" already exists.',
+                'employees': Employee.objects.all()
+            })
+
+        # Create a new user
         try:
             user = User.objects.create_user(
                 username=username,
                 password='temppassword',  # In a real app, use a more secure way to handle passwords
                 first_name=name.split(' ')[0],
-                last_name=' '.join(name.split(' ')[1:])
+                last_name=' '.join(name.split(' ')[1:]),
+                email=email
             )
         except Exception as e:
             return render(request, 'portal/employee_management.html', {
@@ -57,7 +70,6 @@ def employee_management(request):
         # Create a new employee
         employee = Employee.objects.create(
             user=user,
-            email=email,
             employee_type='FT',  # Using a default value
             role='EMP'  # Using a default value
         )
@@ -97,12 +109,19 @@ def edit_employee(request, employee_id):
                 'employee': employee
             })
 
+        # Check for duplicate email
+        if email and User.objects.filter(email=email).exclude(id=employee.user.id).exists():
+            return render(request, 'portal/edit_employee.html', {
+                'error': f'An employee with email "{email}" already exists.',
+                'employee': employee
+            })
+
         # Update user and employee
         employee.user.first_name = name.split(' ')[0]
         employee.user.last_name = ' '.join(name.split(' ')[1:])
+        employee.user.email = email
         employee.user.save()
 
-        employee.email = email
         employee.save()
 
         # Create an audit log entry

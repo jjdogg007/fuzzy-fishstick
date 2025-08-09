@@ -16,8 +16,6 @@ class Employee(models.Model):
     employee_type = models.CharField(max_length=2, choices=EMPLOYEE_TYPE_CHOICES)
     role = models.CharField(max_length=3, choices=ROLE_CHOICES, default='EMP')
 
-    email = models.EmailField(max_length=254, blank=True)
-
     def __str__(self):
         return self.user.get_full_name() or self.user.username
 
