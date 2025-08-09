@@ -28,7 +28,7 @@ class Command(BaseCommand):
 
         # 2. Verify the employee was created
         try:
-            employee = Employee.objects.get(email=employee_email)
+            employee = Employee.objects.get(user__email=employee_email)
             if employee.user.get_full_name() == employee_name:
                 self.stdout.write(self.style.SUCCESS(f'Employee "{employee_name}" created successfully in the database.'))
             else:
@@ -74,8 +74,8 @@ class Command(BaseCommand):
         # 1. Create a new employee to edit
         edit_employee_name = 'Jane Doe'
         edit_employee_email = 'jane.doe@example.com'
-        user_to_edit = User.objects.create_user(username=edit_employee_email, password='password', first_name='Jane', last_name='Doe')
-        employee_to_edit = Employee.objects.create(user=user_to_edit, email=edit_employee_email, employee_type='PT', role='EMP')
+        user_to_edit = User.objects.create_user(username=edit_employee_email, password='password', first_name='Jane', last_name='Doe', email=edit_employee_email)
+        employee_to_edit = Employee.objects.create(user=user_to_edit, employee_type='PT', role='EMP')
 
         # 2. Edit the employee
         new_name = 'Jane Smith'
@@ -88,7 +88,7 @@ class Command(BaseCommand):
 
         # 3. Verify the changes
         employee_to_edit.refresh_from_db()
-        if employee_to_edit.user.get_full_name() == new_name and employee_to_edit.email == new_email:
+        if employee_to_edit.user.get_full_name() == new_name and employee_to_edit.user.email == new_email:
             self.stdout.write(self.style.SUCCESS('Employee data was updated successfully in the database.'))
         else:
             self.stderr.write('Error: Employee data was not updated correctly.')
@@ -110,8 +110,8 @@ class Command(BaseCommand):
         # 1. Create a new employee to delete
         delete_employee_name = 'Temp Employee'
         delete_employee_email = 'temp@example.com'
-        user_to_delete = User.objects.create_user(username=delete_employee_email, password='password', first_name='Temp', last_name='Employee')
-        employee_to_delete = Employee.objects.create(user=user_to_delete, email=delete_employee_email, employee_type='FT', role='EMP')
+        user_to_delete = User.objects.create_user(username=delete_employee_email, password='password', first_name='Temp', last_name='Employee', email=delete_employee_email)
+        employee_to_delete = Employee.objects.create(user=user_to_delete, employee_type='FT', role='EMP')
 
         # 2. Delete the employee
         client.post(f'/employees/delete/{employee_to_delete.id}/')
@@ -131,7 +131,43 @@ class Command(BaseCommand):
             self.stderr.write('Error: Audit log entry for deletion was not created.')
 
         # --- Cleanup for Delete Test ---
-        if delete_log:
+        if 'delete_log' in locals() and delete_log:
             delete_log.delete()
+
+
+        # --- Test Error Handling ---
+        self.stdout.write(self.style.SUCCESS('\n--- Testing Error Handling ---'))
+        # 1. Create a user to test against
+        test_user_name = 'Test User'
+        test_user_email = 'test@example.com'
+        existing_user = User.objects.create_user(username=test_user_email, password='password', first_name='Test', last_name='User', email=test_user_email)
+
+        # 2. Test duplicate email on add
+        response = client.post('/employees/', {
+            'name': 'Another User',
+            'email': test_user_email,
+        })
+        if 'already exists' in response.content.decode():
+            self.stdout.write(self.style.SUCCESS('Successfully caught duplicate email on add.'))
+        else:
+            self.stderr.write('Error: Did not catch duplicate email on add.')
+
+        # 3. Test duplicate email on edit
+        user_to_edit = User.objects.create_user(username='edit_test', password='password', first_name='Edit', last_name='Test', email='edit_test@example.com')
+        employee_to_edit = Employee.objects.create(user=user_to_edit)
+
+        response = client.post(f'/employees/edit/{employee_to_edit.id}/', {
+            'name': 'Any Name',
+            'email': test_user_email,
+        })
+        if 'already exists' in response.content.decode():
+            self.stdout.write(self.style.SUCCESS('Successfully caught duplicate email on edit.'))
+        else:
+            self.stderr.write('Error: Did not catch duplicate email on edit.')
+
+        # --- Cleanup for Error Handling Test ---
+        existing_user.delete()
+        user_to_edit.delete()
+
 
         self.stdout.write(self.style.SUCCESS('\n--- All tests completed ---'))

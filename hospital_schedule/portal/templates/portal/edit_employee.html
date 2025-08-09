@@ -15,7 +15,7 @@
         <label for="name">Name:</label><br>
         <input type="text" id="name" name="name" value="{{ employee.user.get_full_name }}"><br>
         <label for="email">Email:</label><br>
-        <input type="email" id="email" name="email" value="{{ employee.email }}"><br><br>
+        <input type="email" id="email" name="email" value="{{ employee.user.email }}"><br><br>
         <input type="submit" value="Save Changes">
     </form>
 

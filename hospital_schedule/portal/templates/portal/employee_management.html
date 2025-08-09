@@ -2,18 +2,43 @@
 <html>
 <head>
     <title>Employee Management</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        form { margin-bottom: 2em; }
+        input[type="text"], input[type="email"] { width: 100%; padding: 8px; margin: 4px 0; box-sizing: border-box; }
+        button, input[type="submit"] { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover, input[type="submit"]:hover { background-color: #45a049; }
+
+        @media screen and (max-width: 600px) {
+            table, thead, tbody, th, td, tr { display: block; }
+            thead tr { position: absolute; top: -9999px; left: -9999px; }
+            tr { border: 1px solid #ccc; margin-bottom: 5px; }
+            td { border: none; border-bottom: 1px solid #eee; position: relative; padding-left: 50%; }
+            td:before { position: absolute; top: 6px; left: 6px; width: 45%; padding-right: 10px; white-space: nowrap; }
+            td:nth-of-type(1):before { content: "Name"; }
+            td:nth-of-type(2):before { content: "Email"; }
+            td:nth-of-type(3):before { content: "Type"; }
+            td:nth-of-type(4):before { content: "Role"; }
+            td:nth-of-type(5):before { content: "Actions"; }
+        }
+    </style>
 </head>
 <body>
+    <div id="status-indicator" style="position: fixed; top: 0; left: 0; width: 100%; padding: 5px; text-align: center; color: white;"></div>
     <h1>Employee Management</h1>
 
     <h2>Add Employee</h2>
     {% if error %}
         <p style="color: red;">{{ error }}</p>
     {% endif %}
-    <form method="post">
+    <form id="add-employee-form" method="post">
         {% csrf_token %}
         <label for="name">Name:</label><br>
-        <input type="text" id="name" name="name"><br>
+        <input type="text" id="name" name="name" autofocus><br>
         <label for="email">Email:</label><br>
         <input type="email" id="email" name="email"><br><br>
         <input type="submit" value="Add Employee">
@@ -34,7 +59,7 @@
             {% for employee in employees %}
             <tr>
                 <td>{{ employee.user.get_full_name }}</td>
-                <td>{{ employee.email|default:"No email provided" }}</td>
+                <td>{{ employee.user.email|default:"No email provided" }}</td>
                 <td>{{ employee.get_employee_type_display }}</td>
                 <td>{{ employee.get_role_display }}</td>
                 <td>
@@ -54,5 +79,41 @@
     </table>
     <br>
     <a href="{% url 'index' %}">Go to PTO Request</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const nameInput = document.getElementById('name');
+            const addEmployeeForm = document.getElementById('add-employee-form');
+            const statusIndicator = document.getElementById('status-indicator');
+
+            function updateStatus() {
+                if (navigator.onLine) {
+                    statusIndicator.textContent = '🟢 Connected';
+                    statusIndicator.style.backgroundColor = '#4CAF50';
+                } else {
+                    statusIndicator.textContent = '🔴 Offline';
+                    statusIndicator.style.backgroundColor = '#f44336';
+                }
+            }
+
+            window.addEventListener('online', updateStatus);
+            window.addEventListener('offline', updateStatus);
+            updateStatus();
+
+            document.addEventListener('keydown', function(event) {
+                // Ctrl+N or Cmd+N to focus on the name input
+                if ((event.ctrlKey || event.metaKey) && event.key === 'n') {
+                    event.preventDefault();
+                    nameInput.focus();
+                }
+
+                // Ctrl+S or Cmd+S to submit the form
+                if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                    event.preventDefault();
+                    addEmployeeForm.submit();
+                }
+            });
+        });
+    </script>
 </body>
 </html>
