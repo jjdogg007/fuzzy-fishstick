@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Employee</title>
+</head>
+<body>
+    <h1>Edit Employee</h1>
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <label for="name">Name:</label><br>
+        <input type="text" id="name" name="name" value="{{ employee.user.get_full_name }}"><br>
+        <label for="email">Email:</label><br>
+        <input type="email" id="email" name="email" value="{{ employee.email }}"><br><br>
+        <input type="submit" value="Save Changes">
+    </form>
+
+    <br>
+    <a href="{% url 'employee_management' %}">Cancel</a>
+</body>
+</html>
