@@ -5,9 +5,22 @@ from django.contrib.auth.models import User
 
 def index(request):
     if request.method == 'POST':
-        # This will be handled in a later step
-        return HttpResponse("Form submitted!")
+        try:
+            employee_id = request.POST.get('employee_id')
+            user = User.objects.get(id=employee_id)
+            employee = Employee.objects.get(user=user)
 
-    # For now, we'll just render a simple template.
-    # We'll create the template in the next step.
+            PTORequest.objects.create(
+                employee=employee,
+                start_date=request.POST.get('start_date'),
+                end_date=request.POST.get('end_date'),
+                reason=request.POST.get('reason'),
+            )
+            return render(request, 'portal/success.html')
+        except (User.DoesNotExist, Employee.DoesNotExist):
+            return render(request, 'portal/index.html', {'error': 'Invalid Employee ID'})
+        except Exception as e:
+            return render(request, 'portal/index.html', {'error': f"An error occurred: {e}"})
+
+
     return render(request, 'portal/index.html')
