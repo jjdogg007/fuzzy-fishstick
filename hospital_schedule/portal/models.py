@@ -16,8 +16,18 @@ class Employee(models.Model):
     employee_type = models.CharField(max_length=2, choices=EMPLOYEE_TYPE_CHOICES)
     role = models.CharField(max_length=3, choices=ROLE_CHOICES, default='EMP')
 
+    email = models.EmailField(max_length=254, blank=True)
+
     def __str__(self):
         return self.user.get_full_name() or self.user.username
+
+class AuditLog(models.Model):
+    timestamp = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=100)
+    details = models.TextField()
+
+    def __str__(self):
+        return f'{self.timestamp.strftime("%Y-%m-%d %H:%M:%S")} - {self.action}'
 
 class Shift(models.Model):
     start_time = models.DateTimeField()
