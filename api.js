@@ -124,6 +124,18 @@ export async function deleteEmployee(employeeId, isSyncing = false) {
     return { data, error };
 }
 
+export async function addShiftBid(bidData) {
+    const { data, error } = await supabaseClient.from('shift_bids').insert([bidData]).select().single();
+    if (error) {
+        console.error('Error adding shift bid:', error);
+    } else if (data) {
+        addAuditLog('Shift Bid Added', {
+            employee_id: data.employee_id,
+            details: { ...bidData }
+        });
+    }
+    return { data, error };
+}
 
 export async function getShifts() {
     const { data, error } = await supabaseClient.from('shifts').select('*, employees(name)');
@@ -219,4 +231,42 @@ export async function addAuditLog(action, payload) {
     };
     const { error } = await supabaseClient.from('audit_log').insert([logEntry]);
     if (error) console.error('Error adding audit log:', error);
+}
+
+export async function getShiftBids() {
+    const { data, error } = await supabaseClient
+        .from('shift_bids')
+        .select(`
+            *,
+            shifts (*),
+            employees (name)
+        `)
+        .eq('status', 'pending');
+
+    if (error) console.error('Error fetching shift bids:', error);
+    return { data, error };
+}
+
+export async function updateShiftBidStatus(bidId, status) {
+    const { data, error } = await supabaseClient
+        .from('shift_bids')
+        .update({ status: status })
+        .eq('id', bidId)
+        .select()
+        .single();
+
+    if (error) console.error('Error updating shift bid status:', error);
+    return { data, error };
+}
+
+export async function assignShiftToEmployee(shiftId, employeeId) {
+    const { data, error } = await supabaseClient
+        .from('shifts')
+        .update({ employee_id: employeeId })
+        .eq('id', shiftId)
+        .select()
+        .single();
+
+    if (error) console.error('Error assigning shift to employee:', error);
+    return { data, error };
 }
