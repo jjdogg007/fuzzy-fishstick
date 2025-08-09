@@ -1,0 +1,7 @@
+// Create a copy of this file and name it config.js
+// Replace the placeholder values with your actual Supabase credentials
+
+window.SUPABASE_CONFIG = {
+    URL: 'YOUR_SUPABASE_URL',
+    ANON_KEY: 'YOUR_SUPABASE_ANON_KEY'
+};

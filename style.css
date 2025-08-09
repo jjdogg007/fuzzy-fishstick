@@ -217,6 +217,34 @@ button:hover, input[type="submit"]:hover {
 }
 
 
+/* --- Quadrant Dashboard --- */
+.quadrant-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.quadrant {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.quadrant:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.quadrant h3 {
+    margin-top: 0;
+}
+
+
 /* --- Animations --- */
 @keyframes fadein {
     from {bottom: 0; opacity: 0;}
